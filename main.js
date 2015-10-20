@@ -4,6 +4,7 @@ var crypto = require('crypto');
 var url = require('url');
 var https = require('https');
 var express = require('express');
+var bodyParser = require('body-parser');
 var querystring = require('querystring');
 var sqlite = require('sqlite3').verbose();
 var path = require('path');
@@ -12,8 +13,12 @@ var cache = require('./cache');
 var config = require('./config');
 
 var app = express();
+
 app.use(require('cookie-parser')());
 app.use(express.static('static'));
+app.use(bodyParser.urlencoded({extended: true}));
+app.use(bodyParser.json());
+
 app.set('views', path.join(__dirname, '/views'));
 app.set('view engine', 'jade');
 
@@ -39,36 +44,40 @@ function createGitHubState(value){
     return key;
 }
 
+function getRedirectUrl(cb){
+    db.get('SELECT url FROM Referrer ORDER BY id DESC LIMIT 1;', (err, row) => {
+        if (err) {
+            return cb(err, null);
+        }
+        if (row) {
+            return cb(null, row.url);
+        } else {
+            return cb(null, null);
+        }
+    });
+}
 
 app.get('/', function(req, res){
-    res.render('index', {url: 'http://hello.world'});
+    getRedirectUrl((err, url) => {
+        if (err) {
+            return res.end(err);
+        }
+        if (url){
+            res.render('index', {url: url});
+        } else {
+            res.render('no-redirect');
+        }
+    });
 });
 
 app.get(config.redirect_path, function(req, res){
-    db.get('SELECT url FROM Referrer ORDER BY id DESC LIMIT 1;', function(err, row){
+    getRedirectUrl(function(err, row){
         if (! row){
             res.end('nowhere to redirect to');
         } else {
             res.redirect(row.url);
         }
     });
-});
-
-app.get('/jump', function(req, res){
-
-});
-
-app.get('/login', function(req, res){
-    res.redirect(url.format({
-        protocol: "https",
-        host: 'github.com',
-        pathname: '/login/oauth/authorize',
-        query: {
-            client_id: config.gh_client_id,
-            state:  createGitHubState(req.query.ret || '/'),
-            scope: config.gh_scope
-        }
-    }));
 });
 
 function get_user(token, cb){
@@ -155,16 +164,33 @@ app.get(config.gh_auth_callback, function(req, res){
    }).end(token_request);
 });
 
+app.get('/login', function(req, res){
+    res.redirect(url.format({
+        protocol: "https",
+        host: 'github.com',
+        pathname: '/login/oauth/authorize',
+        query: {
+            client_id: config.gh_client_id,
+            state:  createGitHubState(req.query.ret || '/'),
+            scope: config.gh_scope
+        }
+    }));
+});
 
 
-app.get('/test', function(req, res){
+function setRedirectUrl(url, who, cb){
+    db.run('INSERT INTO Referrer (whenText, who, url) VALUES (?, ?, ?);',
+           new Date().toUTCString(), who, url, cb)
+}
+
+function withUser(req, res, cb){
     var key = req.cookies[cookie_name];
     if (! key){
-        return res.redirect('/login?ret=/test');
+        return res.redirect('/login?ret=' + req.path);
     }
     var token = login_sessions.get(key);
     if (! token){
-        return res.redirect('/login?ret=/test');
+        return res.redirect('/login?ret=' + req.path);
     }
     
     get_user(token, function(user){
@@ -174,13 +200,17 @@ app.get('/test', function(req, res){
                     //clear the cookie and token
                     res.clearCookie(cookie_name);
                     login_sessions.remove(key);
-                    res.redirect('/login?ret=/test');
+                    res.redirect('/login?ret=' + req.path);
                 } else {
-                    res.end('yes, you can!');
+                    cb(user);
                 }
             });
         }
     });
+}
+
+app.get('/set-redirect', function(req, res){
+    withUser(req, res, user => {res.render('set-redirect');});
 });
 
 
