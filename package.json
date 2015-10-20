@@ -1,0 +1,25 @@
+{
+  "name": "simple-redirection-service",
+  "version": "1.0.0",
+  "description": "Simple redirection service with GitHub login",
+  "main": "main.js",
+  "scripts": {
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/itsuart/simple-redirection-service.git"
+  },
+  "author": "Ilya Seleznev",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/itsuart/simple-redirection-service/issues"
+  },
+  "homepage": "https://github.com/itsuart/simple-redirection-service#readme",
+  "dependencies": {
+    "cookie-parser": "^1.4.0",
+    "express": "^4.13.3",
+    "jade": "^1.11.0",
+    "sqlite3": "^3.1.0"
+  }
+}
