@@ -1,3 +1,13 @@
 doctype
-p #{url}
-a(href='#{url}' rel='nofollow') #{url}
+html
+  head
+    title Simple Redirection Service
+  body
+    div
+      a(href='#{redirect_url}' rel='nofollow') Redirect
+      |&nbsp; to &nbsp;
+      a(href='#{target_url}' rel='nofollow') #{target_url}
+    div
+      - var shit = 
+      span Html code: #{html_code}
+

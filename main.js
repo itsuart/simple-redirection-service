@@ -63,7 +63,11 @@ app.get('/', function(req, res){
             return res.end(err);
         }
         if (url){
-            res.render('index', {url: url});
+            res.render('index', {
+                redirect_url: config.redirect_path,
+                target_url: url,
+                html_code: "<a href='" + config.host_prefix + config.redirect_path + "' rel='nofollow'></a>"
+            });
         } else {
             res.render('no-redirect');
         }
@@ -71,11 +75,11 @@ app.get('/', function(req, res){
 });
 
 app.get(config.redirect_path, function(req, res){
-    getRedirectUrl(function(err, row){
-        if (! row){
-            res.end('nowhere to redirect to');
+    getRedirectUrl(function(err, url){
+        if (! url){
+            res.render('no-redirect');
         } else {
-            res.redirect(row.url);
+            res.redirect(url);
         }
     });
 });
@@ -164,7 +168,7 @@ app.get(config.gh_auth_callback, function(req, res){
    }).end(token_request);
 });
 
-app.get('/login', function(req, res){
+app.get('/-/login', function(req, res){
     res.redirect(url.format({
         protocol: "https",
         host: 'github.com',
@@ -186,11 +190,11 @@ function setRedirectUrl(url, who, cb){
 function withUser(req, res, cb){
     var key = req.cookies[cookie_name];
     if (! key){
-        return res.redirect('/login?ret=' + req.path);
+        return res.redirect('/-/login?ret=' + req.path);
     }
     var token = login_sessions.get(key);
     if (! token){
-        return res.redirect('/login?ret=' + req.path);
+        return res.redirect('/-/login?ret=' + req.path);
     }
     
     get_user(token, function(user){
@@ -209,7 +213,7 @@ function withUser(req, res, cb){
     });
 }
 
-app.get('/set-redirect', function(req, res){
+app.get('/-/set-redirect', function(req, res){
     withUser(req, res, user => {res.render('set-redirect');});
 });
 
