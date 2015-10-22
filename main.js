@@ -19,8 +19,10 @@ app.use(express.static('static'));
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(bodyParser.json());
 
-app.set('views', path.join(__dirname, '/views'));
-app.set('view engine', 'jade');
+var ECT = require('ect');
+var ectRenderer = ECT({ watch: true, root: __dirname + '/views', ext : '.ect' });
+app.set('view engine', 'ect');
+app.engine('ect', ectRenderer.render);
 
 var db = new sqlite.Database(config.db);
 
@@ -66,7 +68,7 @@ app.get('/', function(req, res){
             res.render('index', {
                 redirect_url: config.redirect_path,
                 target_url: url,
-                html_code: "<a href='" + config.host_prefix + config.redirect_path + "' rel='nofollow'></a>"
+                html_code: "<a href='" + config.host_prefix + config.redirect_path + "' rel='noreferrer'></a>"
             });
         } else {
             res.render('no-redirect');
