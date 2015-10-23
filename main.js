@@ -6,12 +6,10 @@ var https = require('https');
 var express = require('express');
 var bodyParser = require('body-parser');
 var querystring = require('querystring');
-var sqlite = require('sqlite3').verbose();
 var path = require('path');
-
 var cache = require('./cache');
 var config = require('./config');
-
+var db = require('./db')(config.db);
 var app = express();
 
 app.use(require('cookie-parser')());
@@ -23,15 +21,6 @@ var ECT = require('ect');
 var ectRenderer = ECT({ watch: true, root: __dirname + '/views', ext : '.ect' });
 app.set('view engine', 'ect');
 app.engine('ect', ectRenderer.render);
-
-var db = new sqlite.Database(config.db);
-
-db.run('CREATE TABLE IF NOT EXISTS Referrer (' +
-       'id INTEGER PRIMARY KEY NOT NULL,' +
-       'whenText TEXT NOT NULL,' +
-       'who TEXT NOT NULL,' +
-       'url TEXT NOT NULL);');
-
 
 var cookie_name = "srs";
 var github_states = cache.create(config.gh_state_timeout);
@@ -46,21 +35,8 @@ function createGitHubState(value){
     return key;
 }
 
-function getRedirectUrl(cb){
-    db.get('SELECT url FROM Referrer ORDER BY id DESC LIMIT 1;', (err, row) => {
-        if (err) {
-            return cb(err, null);
-        }
-        if (row) {
-            return cb(null, row.url);
-        } else {
-            return cb(null, null);
-        }
-    });
-}
-
 app.get('/', function(req, res){
-    getRedirectUrl((err, url) => {
+    db.getRedirectUrl((err, url) => {
         if (err) {
             return res.end(err);
         }
@@ -77,7 +53,7 @@ app.get('/', function(req, res){
 });
 
 app.get(config.redirect_path, function(req, res){
-    getRedirectUrl(function(err, url){
+    db.getRedirectUrl(function(err, url){
         if (! url){
             res.render('no-redirect');
         } else {
@@ -183,12 +159,6 @@ app.get('/-/login', function(req, res){
     }));
 });
 
-
-function setRedirectUrl(url, who, cb){
-    db.run('INSERT INTO Referrer (whenText, who, url) VALUES (?, ?, ?);',
-           new Date().toUTCString(), who, url, cb)
-}
-
 function withUser(req, res, cb){
     var key = req.cookies[cookie_name];
     if (! key){
@@ -206,7 +176,7 @@ function withUser(req, res, cb){
                     //clear the cookie and token
                     res.clearCookie(cookie_name);
                     login_sessions.remove(key);
-                    res.redirect('/login?ret=' + req.path);
+                    res.redirect('/-/login?ret=' + req.path);
                 } else {
                     cb(user);
                 }
@@ -215,10 +185,31 @@ function withUser(req, res, cb){
     });
 }
 
+
 app.get('/-/set-redirect', function(req, res){
-    withUser(req, res, user => {res.render('set-redirect');});
+    withUser(req, res, user => {
+        db.getLast10Redirects( (err, redirects) => {
+            if (err) {
+                console.log(err);
+                return res.setStatus(500).send(err.message);
+            }
+            
+            res.render('set-redirect', {last10: redirects});
+        });
+    });
 });
 
+app.post('/-/set-redirect', (req, res) => {
+    withUser(req, res, user => {
+        //TODO:validate input
+        db.setRedirectUrl(req.body.url, user, err => {
+            if (err) {
+                return res.setStatus(500).send(err.message);
+            }
+            return res.redirect('/');
+        });
+    });
+});
 
 var server = app.listen(3000, function(){
     var host = server.address().address;

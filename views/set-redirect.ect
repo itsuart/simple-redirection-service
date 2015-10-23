@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+   <title>Set redirect &mdash; Simple Redirection Service</title>
+</head>
+<body>
+<div>
+<form method="POST" action="/-/set-redirect">
+  <input type="text" name="url" value="<%=@url%>">
+  <input type="hidden" name="token" value="<%=@token%>" >
+  <input type="submit" value="Set">
+  </form>
+</div>
+<div>
+  <p>Last 10 redirect changes:</p>
+  <table>
+    <tr><th>id</th><th>when</th><th>who</th><th>url</th></tr>
+    <% for redirect in @last10 : %>
+    <tr>
+      <td><%= redirect.id %></td>
+      <td><%= redirect.whenText %></td>
+      <td><%= redirect.who %></td>
+      <td><a href="<%= redirect.url %>" rel="noreferrer"><%= redirect.url %></a></td></tr>
+    <% end %>
+  </table>
+</div>
+</body>
+</html>
