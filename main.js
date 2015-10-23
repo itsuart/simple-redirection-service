@@ -141,10 +141,19 @@ app.get(config.gh_auth_callback, function(req, res){
            var ret_address = github_states.get(state_key);
            github_states.remove(state_key);
 
-           login_sessions.put(state_key, access_token);
-
-           res.cookie(cookie_name, state_key);
-           res.redirect(ret_address);
+           get_user(access_token, function(user){
+               if (user){
+                   can_write(user, config.repo, access_token, function(yes){
+                       if (! yes){
+                           res.redirect('/-/login?ret=' + req.path);
+                       } else {
+                           login_sessions.put(state_key, {token: access_token, user: user});
+                           res.cookie(cookie_name, state_key);
+                           res.redirect(ret_address);
+                       }
+                   });
+               }
+           });
        });
    }).end(token_request);
 });
@@ -167,25 +176,12 @@ function withUser(req, res, cb){
     if (! key){
         return res.redirect('/-/login?ret=' + req.path);
     }
-    var token = login_sessions.get(key);
-    if (! token){
+    var authObj = login_sessions.get(key);
+    if (! authObj){
         return res.redirect('/-/login?ret=' + req.path);
     }
     
-    get_user(token, function(user){
-        if (user){
-            can_write(user, config.repo, token, function(yes){
-                if (! yes){
-                    //clear the cookie and token
-                    res.clearCookie(cookie_name);
-                    login_sessions.remove(key);
-                    res.redirect('/-/login?ret=' + req.path);
-                } else {
-                    cb(user);
-                }
-            });
-        }
-    });
+    cb(authObj.user);
 }
 
 
