@@ -7,6 +7,8 @@ var express = require('express');
 var bodyParser = require('body-parser');
 var querystring = require('querystring');
 var path = require('path');
+var url = require('url');
+
 var cache = require('./cache');
 var config = require('./config');
 var db = require('./db')(config.db);
@@ -25,6 +27,7 @@ app.engine('ect', ectRenderer.render);
 var cookie_name = "srs";
 var github_states = cache.create(config.gh_state_timeout);
 var login_sessions = cache.create(config.session_timeout);
+
 
 function createGitHubState(value){
     var key = crypto.randomBytes(32).toString('hex');
@@ -191,7 +194,7 @@ app.get('/-/set-redirect', function(req, res){
         db.getLast10Redirects( (err, redirects) => {
             if (err) {
                 console.log(err);
-                return res.setStatus(500).send(err.message);
+                return res.status(500).send(err.message);
             }
             
             res.render('set-redirect', {last10: redirects});
@@ -201,8 +204,15 @@ app.get('/-/set-redirect', function(req, res){
 
 app.post('/-/set-redirect', (req, res) => {
     withUser(req, res, user => {
-        //TODO:validate input
-        db.setRedirectUrl(req.body.url, user, err => {
+        var inputUrl = req.body.url;
+        var parsedUrl = url.parse(inputUrl);
+        if (! (parsedUrl.protocol && parsedUrl.host)){
+            return res.status(400).render('set-redirect', {
+                error: "Please provide proper and fully qualified url.",
+                url: inputUrl,
+            });
+        }
+        db.setRedirectUrl(inputUrl, user, err => {
             if (err) {
                 return res.setStatus(500).send(err.message);
             }

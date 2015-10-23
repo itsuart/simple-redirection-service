@@ -5,12 +5,16 @@
 </head>
 <body>
 <div>
-<form method="POST" action="/-/set-redirect">
-  <input type="text" name="url" value="<%=@url%>">
-  <input type="hidden" name="token" value="<%=@token%>" >
-  <input type="submit" value="Set">
+  <% if @error : %>
+  <div><span>Error: <%= @error %></span></div>
+  <% end %>
+  <form method="POST" action="/-/set-redirect">
+    <input type="text" name="url" value="<%=@url%>">
+    <input type="hidden" name="token" value="<%=@token%>" >
+    <input type="submit" value="Set">
   </form>
 </div>
+<% if @last10 : %>
 <div>
   <p>Last 10 redirect changes:</p>
   <table>
@@ -24,5 +28,6 @@
     <% end %>
   </table>
 </div>
+<% end %>
 </body>
 </html>
