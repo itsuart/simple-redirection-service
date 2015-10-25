@@ -24,62 +24,132 @@ var ectRenderer = ECT({ watch: true, root: __dirname + '/views', ext : '.ect' })
 app.set('view engine', 'ect');
 app.engine('ect', ectRenderer.render);
 
-app.get('/', function(req, res){
-    db.getRedirectUrl((err, url) => {
-        if (err) {
-            return res.end(err);
+function dbRedirectToUIModel(x){
+    var full_route = config.host_prefix + x.route;
+    return {
+        route: x.route,
+        full_route: full_route,
+        html_code: `<a href=' ${full_route}' rel='noreferrer'></a>`,
+        target_url: url
+    };
+}
+
+app.get('/', (req, res) => {
+    db.getActiveRedirects((err, redirects) => {
+        if (err){
+            console.log(err);
+            return res.status(500).send(err.message);
         }
-        if (url){
-            res.render('index', {
-                redirect_url: config.redirect_path,
-                target_url: url,
-                html_code: "<a href='" + config.host_prefix + config.redirect_path + "' rel='noreferrer'></a>"
-            });
-        } else {
-            res.render('no-redirect');
-        }
+        var models = redirects.map(dbRedirectToUIModel);
+        res.render('index', {active_redirects: models});
     });
 });
 
-app.get(config.redirect_path, function(req, res){
-    db.getRedirectUrl(function(err, url){
-        if (! url){
-            res.render('no-redirect');
-        } else {
-            res.redirect(url);
-        }
-    });
-});
 
 app.get(config.gh_auth_callback, auth.handle_github_redirect);
 
 app.get('/-/login', auth.begin_github_auth_sequence);
 
-app.get('/-/set-redirect', auth.with_user, function(req, res){
-    db.getLast10Redirects( (err, redirects) => {
-        if (err) {
-            console.log(err);
-            return res.status(500).send(err.message);
-        }
-            
-        res.render('set-redirect', {last10: redirects});
-    });
+app.get('/-/redirects', auth.with_user, (req, res) => {
+    var encoding = req.accepts('text/html', 'application/json');
+    switch (encoding){
+        case 'text/html':{
+            return res.render('redirects');
+        } break;
+        case 'application/json':{
+            db.getAllRedirects((err, redirects) => {
+                if (err) {
+                    console.log(err);
+                    return res.status(500).send(err.message);
+                }
+                return res.send({
+                    'redirects': redirects.map(x => {
+                        var result = dbRedirectToUIModel(x);
+                        result.id = x.id;
+                    })
+                });
+            });
+        } break;
+        default:{
+            return res.status(406).send(`Unsupported content encoding ${encoding}`);
+        } break;
+    }
 });
 
-app.post('/-/set-redirect', auth.with_user, (req, res) => {
+function validateRedirect (req, res, next){
     var inputUrl = req.body.url;
     var parsedUrl = url.parse(inputUrl);
+
+    var inputRoute = req.body.route;
+
     if (! (parsedUrl.protocol && parsedUrl.host)){
-        return res.status(400).render('set-redirect', {
+        return res.status(400).render('new-redirect', {
             error: "Please provide proper and fully qualified url.",
             url: inputUrl,
+            route: inputRoute
         });
     }
+
+    if (! inputRoute ){
+        return res.status(400).render('new-redirect', {
+            error: 'Please provide a route for the redirect.',
+            url: inputUrl,
+            route: inputRoute
+        });
+    }
+
+    if (inputRoute.startsWith('-/') || inputRoute.startsWith('/-/')){
+        return res.status(400).render('new-redirect', {
+            error: "Routes starting with -/ are reserved.",
+            url: inputUrl,
+            route: inputRoute
+        });
+    }
+    
+    var parsedRoute = url.parse(inputRoute);
+    if (parsedRoute.protocol ||
+        parsedRoute.host ||
+        parsedRoute.auth ||
+        parsedRoute.hostname ||
+        parsedRoute.port ||
+        parsedRoute.search ||
+        parsedRoute.hash){
+        return res.status(400).render('new-redirect', {
+            error: 'Only plain path (e.g. /redirect) are valid routes.',
+            url: inputUrl,
+            route: inputRoute
+        });
+    }
+
+    next();
+}
+
+app.put('/-/redirects', auth.with_user, validateRedirect, (req, res) => {
+    var redirectId = req.body.id;
+    if (! redirectId){
+        return res.status(400).send('Redirect id is not set');
+    }
+});
+
+app.post('/-/redirects', auth.with_user, validateRedirect, (req, res) => {
     db.setRedirectUrl(inputUrl, req.gh_user, err => {
         if (err) {
             return res.setStatus(500).send(err.message);
         }
-        return res.redirect('/');
+        return res.redirect('/-/redirects');
+    });
+});
+
+app.get('/*', (req, res) => {
+    db.getRedirectUrl(req.originalUrl, (err, url) =>{
+        if (err){
+            console.log(err);
+            return res.status(500).send(err.message);
+        }
+        if (url){
+            return res.redirect(url);
+        }
+        res.status(404).render('no-redirect');
     });
 });
 

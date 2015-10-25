@@ -3,14 +3,14 @@
 <head>
    <title>Simple Redirection Service</title>
    <script type="text/javascript">
-    function selectText(containerid) {
+    function selectText(elt) {
         if (document.selection) {
             var range = document.body.createTextRange();
-            range.moveToElementText(document.getElementById(containerid));
+            range.moveToElementText(elt);
             range.select();
         } else if (window.getSelection) {
             var range = document.createRange();
-            range.selectNode(document.getElementById(containerid));
+            range.selectNode(elt);
             window.getSelection().addRange(range);
         }
     }
@@ -18,12 +18,24 @@
 </head>
 <body>
 <div>
-  <a href="<%=@redirect_url%>" rel="noreferrer">Redirect</a>&nbsp; to &nbsp;
-  <a href="<%=@target_url%>" rel="noreferrer"><%=@target_url%></a>
+  <% if @active_redirects?.length : %>
+  <table>
+    <tr><th>Route</th><th>Target URL</th><th>HTML code</th></tr>
+    <% for redirect in @active_redirects : %>
+    <tr>
+      <td><%= redirect.route %></td>
+      <td><%= redirect.target_url %></td>
+      <td>
+        <div title='Click to select whole code' onclick="selectText(this);">
+          <%= redirect.html_code %>
+        </div>
+      </td>
+    </tr>
+    <% end %>
+  </table>
+  <% else: %>
+  <p>No active redirects. Please <a href='/-/redirects'>add some</a>.</p>
+  <% end %>
 </div>
-<div>
-  <span>Hmtl code: <%=@html_code%></span>
-</div>
-<div><a href="/-/set-redirect">Change redirect target</a></div>
 </body>
 </html>

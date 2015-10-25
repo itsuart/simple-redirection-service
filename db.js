@@ -6,34 +6,106 @@ module.exports = function(connectionString){
 
     db.run('CREATE TABLE IF NOT EXISTS Redirect (' +
            'id INTEGER PRIMARY KEY NOT NULL,' +
-           'whenText TEXT NOT NULL,' +
-           'who TEXT NOT NULL,' +
-           'url TEXT NOT NULL);');
+           "route TEXT NOT NULL UNIQUE CHECK(route != '')," +
+           "url TEXT NOT NULL CHECK (url != '')," +
+           "createdWhen TEXT NOT NULL CHECK (createdWhen != '')," +
+           "createdBy TEXT NOT NULL CHECK (createdBy != '')," +
+           'description TEXT NOT NULL,' +
+           'isActive INTEGER NOT NULL CHECK(isActive == 1 or isActive == 0)' +
+           ');');
 
-    var result = {};
+    db.run('CREATE TABLE IF NOT EXISTS RedirectHistory (' +
+           'id INTEGER PRIMARY KEY NOT NULL,' +
+           'redirectId INTEGER NOT NULL REFERENCES Redirect(id),' +
+           "whenText TEXT NOT NULL CHECK(whenText != '')," +
+           "who TEXT NOT NULL CHECK (who != '')," +
+           "what TEXT NOT NULL CHECK (what != '')" +
+           ');');
 
-    result.getRedirectUrl = function (cb){
-        db.get('SELECT url FROM Redirect ORDER BY id DESC LIMIT 1;', (err, row) => {
+
+    function updateHistory(redirectId, who, what, cb){
+        var now = new Date().toUTCString();
+        db.run('INSERT INTO RedirectHistory (redirectId, whenText, who, what) VALUES (?, ?, ?, ?);',
+               redirectId, who, what, cb);
+    }
+
+    function getRedirectIdByRoute(route, cb){
+        db.get('SELECT id FROM Redirect WHERE route = ? LIMIT 1;', route, (err, row) => {
             if (err) {
-                return cb(err, null);
+                return cb(err);
             }
-            if (row) {
-                return cb(null, row.url);
-            } else {
-                return cb(null, null);
-            }
+            var id = row.id;
+            cb(null, id);
         });
-    };
+    }
 
-    result.setRedirectUrl = function (url, who, cb){
-        db.run('INSERT INTO Redirect (whenText, who, url) VALUES (?, ?, ?);',
-               new Date().toUTCString(), who, url, cb)
-    };
+    return {
+        getRedirectIdByRoute: getRedirectIdByRoute,
+        
+        getRedirectUrl: function(route, cb){
+            db.get('SELECT url FROM Redirect WHERE (route = ? AND isActive = 1) LIMIT 1;', route, (err, row) => {
+                if (err) {
+                    return cb(err, null);
+                }
+                if (row) {
+                    return cb(null, row.url);
+                } else {
+                    return cb(null, null);
+                }
+            });
+        },
 
-    result.getLast10Redirects = function (cb){
-        db.all('SELECT * FROM Redirect ORDER BY id DESC LIMIT 10;', cb);
+        setRedirectUrl: function(route, url, who, cb){
+            var now = new Date().toUTCString();
+            db.run ('INSERT OR IGNORE INTO Redirect (route, url, createdWhen, createdBy, isActive) VALUES (?, ?, ?, ?, 1);', rotue, url, now, who
+                    , (err, _) => {
+                        if (err) {
+                            return cb(err, null);
+                        }
+                        getRedirectIdByRoute(route, (err, id) => {
+                            if (err){
+                                return cb(err);
+                            }
+                            db.run('UPDATE Redirect SET url = ? WHERE id = ? LIMIT 1;', url, id, (err, _) => {
+                                if (err){
+                                    return cb(err);
+                                }
+                                updateHistory(id, who, `Set redirect for ${route} to ${url}`, cb);
+                            });
+                        });
+                    });
+        },
+
+        getRedirectHistory: function (route, cb){
+            
+        },
+
+        getActiveRedirects: function(cb){
+            db.all('SELECT route, url FROM Redirect WHERE isActive = 1 ORDER BY route LIMIT 100;', cb);
+        },
+
+        getAllRedirects: function (cb){
+            db.all('SELECT route, url FROM Redirect WHERE isActive = 1 ORDER BY route;', cb);
+        },
+        
+        enableRedirect: function (id, who, cb){
+            db.run('UPDATE Redirect SET isActive = 1 WHERE id = ?;', id, (err, _) => {
+                if (err) {
+                    return cb(err);
+                }
+                updateHistory(id, who, 'ENABLED redirect', cb);
+            });
+        },
+
+        disableRedirect: function (id, who, cb){
+            var now = new Date().toUTCString();
+            db.run('UPDATE Redirect SET isActive = 0 WHERE id = ?;', id, (err, _) => {
+                if (err) {
+                    return cb(err);
+                }
+                updateHistory(id, who, 'DISABLED redirect', cb);
+            });
+        }
     };
-    
-    return result;
 };
 
