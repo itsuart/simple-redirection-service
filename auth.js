@@ -84,7 +84,7 @@ module.exports.handle_github_redirect = function (req, res){
        }
    }, function(github_res){
        if (github_res.statusCode !== 200){
-           return res.end('GH status code = ' + github_res.statusCode);
+           return res.status(500).end('GH status code = ' + github_res.statusCode);
        }
        var data = '';
        github_res.on('data', function(chunk){data += chunk;});
@@ -92,7 +92,8 @@ module.exports.handle_github_redirect = function (req, res){
            var result = JSON.parse(data);
            var access_token = result.access_token;
            if (! access_token){
-               return res.end('no access token.');
+               console.log(`{new Date().}
+               return res.status(500).send(`{new Date().toISOString()} Response from GitHub doesnt contains access token.`);
            }
            var ret_address = github_states.get(state_key);
            github_states.remove(state_key);
@@ -101,7 +102,7 @@ module.exports.handle_github_redirect = function (req, res){
                if (user){
                    can_write(user, config.repo, access_token, function(yes){
                        if (! yes){
-                           res.redirect('/-/login?ret=' + req.path);
+                           return res.status(403).send('Permission denied');
                        } else {
                            login_sessions.put(state_key, {token: access_token, user: user});
                            res.cookie(cookie_name, state_key);
