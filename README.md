@@ -2,6 +2,7 @@
 Simple redirecting web service with Github login
 
 ## example config.js content
+```js
 var path = require('path');
 module.exports = {
     gh_client_id: "<GitHub Application Client Id>",
@@ -15,3 +16,4 @@ module.exports = {
     gh_state_timeout: 5 * 60 * 1000, //5 minutes timeout to log-in into GitHub.
     session_timeout: 24 * 60 * 60 * 1000, //1 day timeout for sessions
 };
+```
