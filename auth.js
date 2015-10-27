@@ -92,8 +92,8 @@ module.exports.handle_github_redirect = function (req, res){
            var result = JSON.parse(data);
            var access_token = result.access_token;
            if (! access_token){
-               console.log(`{new Date().}
-               return res.status(500).send(`{new Date().toISOString()} Response from GitHub doesnt contains access token.`);
+               console.log(`{new Date().toISOString()} Response from GitHub doesnt contains access token.`);
+               return res.status(500).send('Response from GitHub doesnt contains access token.');
            }
            var ret_address = github_states.get(state_key);
            github_states.remove(state_key);
