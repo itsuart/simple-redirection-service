@@ -20,8 +20,8 @@ var NewRedirectEntry = React.createClass({
     getInitialState: function (){
         return {
             can_create: false,
-            route_error: '',
-            target_error: '',
+            route_error: 'Please set a value',
+            target_error: 'Please set a value',
             route: '',
             target: '',
             enabled: false
