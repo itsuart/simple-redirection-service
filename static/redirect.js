@@ -54,7 +54,8 @@ var NewRedirectEntry = React.createClass({
         return {
             route: '',
             url: '',
-            enabled: false
+            enabled: false,
+            addNew: function addNew() {}
         };
     },
     handleRouteChange: function handleRouteChange(e) {
@@ -79,6 +80,14 @@ var NewRedirectEntry = React.createClass({
         this.setState({
             enabled: !!e.target.checked
         });
+    },
+    handleCreateClick: function handleCreateClick() {
+        var redirect = {
+            route: this.state.route,
+            target: this.state.target,
+            enabled: this.state.enabled
+        };
+        this.props.addNew(redirect);
     },
     render: function render() {
         var routeError;
@@ -119,9 +128,27 @@ var NewRedirectEntry = React.createClass({
             ),
             React.createElement(
                 "button",
-                { className: "submit-new-route", disabled: !this.state.can_create },
+                { className: "submit-new-route", disabled: !this.state.can_create, onClick: this.handleCreateClick },
                 "Create"
             )
+        );
+    }
+});
+
+var RedirectsList = React.createClass({
+    displayName: "RedirectsList",
+
+    getDefaultProps: function getDefaultProps() {
+        return { items: [] };
+    },
+    render: function render() {
+        var items = this.props.items.map(function (x) {
+            return React.createElement(RedirectEntry, { route: x.route, target: x.target, html: x.html });
+        });
+        return React.createElement(
+            "div",
+            { className: "redirects-list-container" },
+            items
         );
     }
 });
@@ -129,13 +156,25 @@ var NewRedirectEntry = React.createClass({
 var App = React.createClass({
     displayName: "App",
 
+    getInitialState: function getInitialState() {
+        return {
+            redirects: []
+        };
+    },
+
+    createNew: function createNew(redirect) {
+        this.setState({
+            redirects: this.state.redirects.concat([redirect])
+        });
+    },
+
     render: function render() {
         return React.createElement(
             "div",
             null,
-            React.createElement(NewRedirectEntry, null),
+            React.createElement(NewRedirectEntry, { addNew: this.createNew }),
             React.createElement("div", { className: "separator" }),
-            React.createElement(RedirectEntry, { route: "/something", target: "https://google.com", html: "<a href='http://localhost:3000/something' rel='noreferrer'>something</a>" })
+            React.createElement(RedirectsList, { items: this.state.redirects })
         );
     }
 });
