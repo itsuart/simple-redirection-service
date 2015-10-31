@@ -1,22 +1,8 @@
-var RedirectEntry = React.createClass({
-    render: function(){
-        return (
-            <div className="redirect-entry">
-                <div className="redirect-route">
-                Route: <a href='{this.props.route}'>{this.props.route}</a>
-                </div>
-                <div className="redirect-html">
-                Html: {this.props.html}
-                </div>
-                <div className='redirect-target'>
-                Target: <a href='{this.props.target}'>{this.props.target}</a>
-                </div>
-            </div>
-        );
-    }
-});
+'use strict';
 
-var NewRedirectEntry = React.createClass({
+var React = require('react');
+
+module.exports = React.createClass({
     getInitialState: function (){
         return {
             can_create: false,
@@ -86,43 +72,3 @@ var NewRedirectEntry = React.createClass({
         );
     }
 });
-
-var RedirectsList = React.createClass({
-    getDefaultProps: function(){
-        return {items: []};
-    },
-    render: function (){
-        var items = this.props.items.map(x => <RedirectEntry route={x.route} target={x.target} html={x.html}/> );
-        return (
-          <div className='redirects-list-container'>
-                {items}
-          </div>
-        );
-    }
-});
-
-var App = React.createClass({
-    getInitialState: function (){
-        return {
-            redirects : []
-        };
-    },
-
-    createNew: function (redirect){
-        this.setState({
-            redirects: this.state.redirects.concat([redirect])
-        });
-    },
-    
-    render: function (){
-        return(
-            <div>
-                <NewRedirectEntry addNew={this.createNew}/>
-                <div className='separator'/>
-                <RedirectsList items={this.state.redirects} />
-            </div>
-        );
-    }
-});
-
-ReactDOM.render(<App />, document.getElementById('app-root'));

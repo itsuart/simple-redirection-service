@@ -27,3 +27,4 @@ build/Release
 node_modules
 db/
 config.js
+static/app.js
