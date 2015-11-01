@@ -4,7 +4,7 @@
   "description": "Simple redirection service with GitHub login",
   "main": "main.js",
   "scripts": {
-    "test": "test",
+    "run": "node main.js",
     "build": "webpack"
   },
   "repository": {

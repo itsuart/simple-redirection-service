@@ -5,12 +5,15 @@ var React = require('react');
 module.exports = React.createClass({
     getInitialState: function (){
         return {
-            can_create: false,
-            route_error: 'Please set a value',
-            target_error: 'Please set a value',
+            first_run: true,
+
             route: '',
+            route_error: this._getRouteError(''),
+
             target: '',
-            enabled: false
+            target_error: this._getTargetError(''),
+
+            enabled: false,
         };
     },
     getDefaultProps: function(){
@@ -21,22 +24,49 @@ module.exports = React.createClass({
             addNew: function(){}
         };
     },
+    _getRouteError(value){
+        if (! value) {
+            return 'Please set a value';
+        }
+        if (! value.startsWith('/')) {
+            return "Route must start with '/'";
+        }
+        return "";
+    },
     handleRouteChange: function(e){
         var value = e.target.value;
-        var error = value ? '' : 'Please set a value';
+        var error = this._getRouteError(value);
         this.setState({
-            can_create: !(this.state.target_error || error),
             route_error: error,
-            route: value
+            route: value,
+            first_run: false
         });
+    },
+    _getTargetError(value){
+        if (! value) {
+            return 'Please set a value';
+        }
+
+        if (value.startsWith('http://')){
+            if (value.length <= 'http://'.length){
+                return "Please provide domain/IP address";
+            }
+        } else if (value.startsWith('https://')){
+            if (value.length <= 'http://'.length){
+                return "Please provide domain/IP address";
+            }
+        } else {
+            return "Target must start with 'http://' or 'https://'";
+        }
+        return "";
     },
     handleTargetChange: function(e){
         var value = e.target.value;
-        var error = value ? '' : 'Please set a value';
+        var error = this._getTargetError(value);
         this.setState({
-            can_create: !(this.state.route_error || error),
             target_error: error,
-            target: value
+            target: value,
+            first_run: false
         });
     },
     handleEnabledChange: function(e){
@@ -54,20 +84,27 @@ module.exports = React.createClass({
     },
     render: function(){
         var routeError;
-        if (this.state.route_error){
-            routeError = <span className='error-description'>{this.state.route_error}</span>;
-        }
-        
         var targetError;
-        if (this.state.target_error){
-            targetError = <span className='error-description'>{this.state.target_error}</span>;
+        if (! this.state.first_run){
+            if (this.state.route_error){
+                routeError = <span className='error-description'>{this.state.route_error}</span>;
+            }
+
+            if (this.state.target_error){
+                targetError = <span className='error-description'>{this.state.target_error}</span>;
+            }
         }
+
+        var creation_disabled = !!(this.state.first_run || this.state.route_error || this.state.target_error);
+        console.log(this.state);
+        console.log(creation_disabled);
+
         return (
             <div class='new-redirect-entry'>
                 <input className='route-input' type='text' value={this.state.route} placeholder='/some-route' onChange={this.handleRouteChange}/> {routeError} <br/>
                 <input className='target-input' type='url' value={this.state.target} placeholder='http(s)://somehost' onChange={this.handleTargetChange}/> {targetError} <br/>
                 <label><input className='toggle' type='checkbox' checked={!!this.state.enabled} onChange={this.handleEnabledChange}/> &nbsp;Enabled</label>
-                <button className='submit-new-route' disabled={!this.state.can_create} onClick={this.handleCreateClick}>Create</button>
+                <button className='submit-new-route' disabled={creation_disabled} onClick={this.handleCreateClick}>Create</button>
             </div>
         );
     }
