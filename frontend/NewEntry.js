@@ -7,21 +7,22 @@ module.exports = React.createClass({
         return {
             first_run: true,
 
-            route: '',
-            route_error: this._getRouteError(''),
+            route: this.props.route,
+            route_error: this._getRouteError(this.props.route),
 
-            target: '',
-            target_error: this._getTargetError(''),
+            target: this.props.target,
+            target_error: this._getTargetError(this.props.target),
 
-            enabled: false,
+            enabled: this.props.enabled,
         };
     },
     getDefaultProps: function(){
         return {
             route: '',
-            url: '',
+            target: '',
             enabled: false,
-            addNew: function(){}
+            addNew: function(){},
+            locked: false
         };
     },
     _getRouteError(value){
@@ -96,15 +97,13 @@ module.exports = React.createClass({
         }
 
         var creation_disabled = !!(this.state.first_run || this.state.route_error || this.state.target_error);
-        console.log(this.state);
-        console.log(creation_disabled);
 
         return (
             <div class='new-redirect-entry'>
-                <input className='route-input' type='text' value={this.state.route} placeholder='/some-route' onChange={this.handleRouteChange}/> {routeError} <br/>
-                <input className='target-input' type='url' value={this.state.target} placeholder='http(s)://somehost' onChange={this.handleTargetChange}/> {targetError} <br/>
-                <label><input className='toggle' type='checkbox' checked={!!this.state.enabled} onChange={this.handleEnabledChange}/> &nbsp;Enabled</label>
-                <button className='submit-new-route' disabled={creation_disabled} onClick={this.handleCreateClick}>Create</button>
+                <input disabled={this.props.locked} className='route-input' type='text' value={this.state.route} placeholder='/some-route' onChange={this.handleRouteChange}/> {routeError} <br/>
+                <input disabled={this.props.locked} className='target-input' type='url' value={this.state.target} placeholder='http(s)://somehost' onChange={this.handleTargetChange}/> {targetError} <br/>
+                <label><input disabled={this.props.locked} className='toggle' type='checkbox' checked={!!this.state.enabled} onChange={this.handleEnabledChange}/> &nbsp;Enabled</label>
+                <button className='submit-new-route' disabled={this.props.locked || creation_disabled} onClick={this.handleCreateClick}>Create</button>
             </div>
         );
     }

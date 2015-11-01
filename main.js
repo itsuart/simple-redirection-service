@@ -29,8 +29,8 @@ function dbRedirectToUIModel(x){
     return {
         route: x.route,
         full_route: full_route,
-        html_code: `<a href=' ${full_route}' rel='noreferrer'></a>`,
-        target_url: url
+        html: `<a href=' ${full_route}' rel='noreferrer'></a>`,
+        target: x.url
     };
 }
 
@@ -66,6 +66,7 @@ app.get('/-/redirects', auth.with_user, (req, res) => {
                     'redirects': redirects.map(x => {
                         var result = dbRedirectToUIModel(x);
                         result.id = x.id;
+                        return result;
                     })
                 });
             });
@@ -77,7 +78,7 @@ app.get('/-/redirects', auth.with_user, (req, res) => {
 });
 
 function validateRedirect (req, res, next){
-    var inputUrl = req.body.url;
+    var inputUrl = req.body.target;
     var parsedUrl = url.parse(inputUrl);
 
     var inputRoute = req.body.route;
@@ -132,11 +133,39 @@ app.put('/-/redirects', auth.with_user, validateRedirect, (req, res) => {
 });
 
 app.post('/-/redirects', auth.with_user, validateRedirect, (req, res) => {
-    db.setRedirectUrl(inputUrl, req.gh_user, err => {
+    var route = req.body.route;
+    var target = req.body.target;
+
+    db.setRedirectUrl(route, target, req.gh_user.user, err => {
         if (err) {
-            return res.setStatus(500).send(err.message);
+            console.log(err);
+            return res.status(500).send(err.message);
         }
-        return res.redirect('/-/redirects');
+     
+        var encoding = req.accepts('text/html', 'application/json');
+        switch (encoding){
+            case 'text/html':{
+                return res.redirect('/-/redirects');
+            } break;
+            case 'application/json':{
+                db.getAllRedirects((err, redirects) => {
+                    if (err) {
+                        console.log(err);
+                        return res.status(500).send(err.message);
+                    }
+                    return res.send({
+                        'redirects': redirects.map(x => {
+                            var result = dbRedirectToUIModel(x);
+                            result.id = x.id;
+                            return result;
+                        })
+                    });
+                });
+            } break;
+            default:{
+                return res.status(406).send(`Unsupported content encoding ${encoding}`);
+            } break;
+        }
     });
 });
 

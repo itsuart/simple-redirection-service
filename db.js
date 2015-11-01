@@ -26,7 +26,7 @@ module.exports = function(connectionString){
     function updateHistory(redirectId, who, what, cb){
         var now = new Date().toUTCString();
         db.run('INSERT INTO RedirectHistory (redirectId, whenText, who, what) VALUES (?, ?, ?, ?);',
-               redirectId, who, what, cb);
+               redirectId, now, who, what, cb);
     }
 
     function getRedirectIdByRoute(route, cb){
@@ -57,7 +57,7 @@ module.exports = function(connectionString){
 
         setRedirectUrl: function(route, url, who, cb){
             var now = new Date().toUTCString();
-            db.run ('INSERT OR IGNORE INTO Redirect (route, url, createdWhen, createdBy, isActive) VALUES (?, ?, ?, ?, 1);', rotue, url, now, who
+            db.run ('INSERT INTO Redirect (route, url, createdWhen, createdBy, isActive, description) VALUES (?, ?, ?, ?, 1, "");', route, url, now, who
                     , (err, _) => {
                         if (err) {
                             return cb(err, null);
@@ -66,11 +66,21 @@ module.exports = function(connectionString){
                             if (err){
                                 return cb(err);
                             }
-                            db.run('UPDATE Redirect SET url = ? WHERE id = ? LIMIT 1;', url, id, (err, _) => {
+                            db.run('UPDATE Redirect SET url = ? WHERE id = ?;', url, id, (err, _) => {
                                 if (err){
                                     return cb(err);
                                 }
-                                updateHistory(id, who, `Set redirect for ${route} to ${url}`, cb);
+                                updateHistory(id, who, `Set redirect for ${route} to ${url}`, (err, _) => {
+                                    if (err){
+                                        return cb(err);
+                                    }
+                                    return cb(null, {
+                                        id: id,
+                                        route: route,
+                                        target: url,
+                                        enabled: true //TODO: make editable
+                                    });
+                                });
                             });
                         });
                     });
